@@ -5,7 +5,6 @@ namespace ATMConsoleApp
 {
     class Program
     {
-        // IMPORTANT: Change "YourPasswordHere" to the root password you created!
         static string connectionString = "Server=localhost;Database=ATM_System;Uid=root;Pwd=password;";
         static int currentAccountId = -1;
         static string currentUserRole = "";
@@ -15,7 +14,7 @@ namespace ATMConsoleApp
             while (true)
             {
                 Console.Clear();
-                Console.WriteLine("=== Welcome to the ATM System ===");
+                Console.WriteLine("Welcome to the ATM System");
                 
                 if (Login())
                 {
@@ -87,11 +86,11 @@ namespace ATMConsoleApp
             while (loggedIn)
             {
                 Console.Clear();
-                Console.WriteLine("=== Customer Menu ===");
-                Console.WriteLine("1----Withdraw Cash");
-                Console.WriteLine("3----Deposit Cash");
-                Console.WriteLine("4----Display Balance");
-                Console.WriteLine("5----Exit");
+                Console.WriteLine("Customer Menu");
+                Console.WriteLine("1 - Withdraw Cash");
+                Console.WriteLine("3 - Deposit Cash");
+                Console.WriteLine("4 - Display Balance");
+                Console.WriteLine("5 - Exit");
                 Console.Write("Selection: ");
                 
                 string choice = Console.ReadLine();
@@ -99,7 +98,7 @@ namespace ATMConsoleApp
                 switch (choice)
                 {
                     case "1":
-                        Console.WriteLine("Withdrawal feature coming next...");
+                        WithdrawCash();
                         break;
                     case "3":
                         Console.WriteLine("Deposit feature coming soon...");
@@ -182,6 +181,61 @@ namespace ATMConsoleApp
                         Console.WriteLine($"Date: {DateTime.Now:MM/dd/yyyy}");
                         Console.WriteLine($"Balance: {balance:N0}");
                     }
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database Error: {ex.Message}");
+            }
+        }
+        static void WithdrawCash()
+        {
+            Console.Write("\nEnter the withdrawal amount: ");
+            string input = Console.ReadLine();
+
+            // Validate the input is a number and is greater than 0
+            if (!decimal.TryParse(input, out decimal amount) || amount <= 0)
+            {
+                Console.WriteLine("Error: Please enter a valid positive number.");
+                return;
+            }
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    
+                    // 1. Check if they have enough money first
+                    string checkQuery = "SELECT Balance FROM Accounts WHERE AccountID = @id";
+                    decimal currentBalance = 0;
+                    using (MySqlCommand checkCmd = new MySqlCommand(checkQuery, conn))
+                    {
+                        checkCmd.Parameters.AddWithValue("@id", currentAccountId);
+                        currentBalance = Convert.ToDecimal(checkCmd.ExecuteScalar());
+                    }
+
+                    if (amount > currentBalance)
+                    {
+                        Console.WriteLine("Error: Insufficient funds for this withdrawal.");
+                        return;
+                    }
+
+                    // 2. Deduct the money from the database
+                    string updateQuery = "UPDATE Accounts SET Balance = Balance - @amount WHERE AccountID = @id";
+                    using (MySqlCommand updateCmd = new MySqlCommand(updateQuery, conn))
+                    {
+                        updateCmd.Parameters.AddWithValue("@amount", amount);
+                        updateCmd.Parameters.AddWithValue("@id", currentAccountId);
+                        updateCmd.ExecuteNonQuery();
+                    }
+
+                    // 3. Print the required receipt format
+                    Console.WriteLine("Cash Successfully Withdrawn");
+                    Console.WriteLine($"Account #{currentAccountId}");
+                    Console.WriteLine($"Date: {DateTime.Now:MM/dd/yyyy}");
+                    Console.WriteLine($"Withdrawn: {amount}");
+                    Console.WriteLine($"Balance: {currentBalance - amount:N0}");
                 }
             }
             catch (Exception ex)
