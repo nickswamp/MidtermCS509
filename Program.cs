@@ -142,6 +142,8 @@ namespace ATMConsoleApp
                 switch (choice)
                 {
                     case "1":
+                        CreateAccount();
+                        break;
                     case "2":
                     case "3":
                     case "4":
@@ -163,7 +165,80 @@ namespace ATMConsoleApp
                 }
             }
         }
+        static void CreateAccount()
+        {
+            Console.WriteLine("\n--- Create New Account ---");
+            
+            Console.Write("Login: ");
+            string login = Console.ReadLine();
 
+            Console.Write("Pin Code: ");
+            string pin = Console.ReadLine();
+
+            // Validate the pin is exactly 5 characters AND is a number
+            if (pin.Length != 5 || !int.TryParse(pin, out _))
+            {
+                Console.WriteLine("Error: PIN must be an integer of exactly 5 digits.");
+                return;
+            }
+
+            Console.Write("Holders Name: ");
+            string name = Console.ReadLine();
+
+            Console.Write("Starting Balance: ");
+            string balanceInput = Console.ReadLine();
+            
+            // Validate the balance is a valid number
+            if (!decimal.TryParse(balanceInput, out decimal balance) || balance < 0)
+            {
+                Console.WriteLine("Error: Invalid balance amount.");
+                return;
+            }
+
+            Console.Write("Status (Active/Disabled): ");
+            string status = Console.ReadLine();
+            
+            // Validate status spelling
+            if (status != "Active" && status != "Disabled")
+            {
+                Console.WriteLine("Error: Status must be exactly 'Active' or 'Disabled'.");
+                return;
+            }
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    
+                    // Insert the new account into the database
+                    string insertQuery = @"
+                        INSERT INTO Accounts (Login, PinCode, Role, HolderName, Balance, Status) 
+                        VALUES (@login, @pin, 'Customer', @name, @balance, @status)";
+                        
+                    using (MySqlCommand cmd = new MySqlCommand(insertQuery, conn))
+                    {
+                        cmd.Parameters.AddWithValue("@login", login);
+                        cmd.Parameters.AddWithValue("@pin", pin);
+                        cmd.Parameters.AddWithValue("@name", name);
+                        cmd.Parameters.AddWithValue("@balance", balance);
+                        cmd.Parameters.AddWithValue("@status", status);
+                        
+                        cmd.ExecuteNonQuery();
+                        
+                        // Grab the auto-generated Account ID to show on the receipt
+                        long newId = cmd.LastInsertedId;
+                        
+                        Console.WriteLine($"\nAccount Successfully Created – the account number assigned is: {newId}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                // This will catch things like trying to use a Login name that already exists
+                Console.WriteLine($"\nDatabase Error: {ex.Message}");
+            }
+        }
         static void DisplayBalance()
         {
             try
