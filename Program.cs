@@ -151,7 +151,7 @@ namespace ATMConsoleApp
                         UpdateAccount();
                         break;
                     case "4":
-                        Console.WriteLine("Coming Soon"!);
+                        SearchAccount();
                         break;
                     case "6":
                         loggedIn = false;
@@ -397,6 +397,54 @@ namespace ATMConsoleApp
                     }
                     
                     Console.WriteLine("\nAccount Updated Successfully!");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database Error: {ex.Message}");
+            }
+        }
+        static void SearchAccount()
+        {
+            Console.Write("\nEnter Account number: "); // [cite: 74]
+            string idInput = Console.ReadLine();
+
+            if (!int.TryParse(idInput, out int accountId))
+            {
+                Console.WriteLine("Error: Invalid account number.");
+                return;
+            }
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    
+                    // Fetch the account data. We ensure we only search for Customers.
+                    string fetchQuery = "SELECT HolderName, Balance, Status, Login, PinCode FROM Accounts WHERE AccountID = @id AND Role = 'Customer'";
+                    
+                    using (MySqlCommand fetchCmd = new MySqlCommand(fetchQuery, conn))
+                    {
+                        fetchCmd.Parameters.AddWithValue("@id", accountId);
+                        using (MySqlDataReader reader = fetchCmd.ExecuteReader())
+                        {
+                            if (!reader.Read())
+                            {
+                                Console.WriteLine("Error: Customer account not found.");
+                                return;
+                            }
+
+                            // Print the exact format requested by the requirements
+                            Console.WriteLine("\nThe account information is:"); // [cite: 75]
+                            Console.WriteLine($"Account # {accountId}"); // [cite: 76]
+                            Console.WriteLine($"Holder: {reader.GetString("HolderName")}"); // [cite: 77]
+                            Console.WriteLine($"Balance: {reader.GetDecimal("Balance"):N0}"); // [cite: 78]
+                            Console.WriteLine($"Status: {reader.GetString("Status")}"); // [cite: 79]
+                            Console.WriteLine($"Login: {reader.GetString("Login")}"); // [cite: 80]
+                            Console.WriteLine($"Pin Code: {reader.GetString("PinCode")}"); // [cite: 81]
+                        }
+                    }
                 }
             }
             catch (Exception ex)
