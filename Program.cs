@@ -101,7 +101,7 @@ namespace ATMConsoleApp
                         WithdrawCash();
                         break;
                     case "3":
-                        Console.WriteLine("Deposit feature coming soon...");
+                        DepositCash();
                         break;
                     case "4":
                         DisplayBalance();
@@ -236,6 +236,55 @@ namespace ATMConsoleApp
                     Console.WriteLine($"Date: {DateTime.Now:MM/dd/yyyy}");
                     Console.WriteLine($"Withdrawn: {amount}");
                     Console.WriteLine($"Balance: {currentBalance - amount:N0}");
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database Error: {ex.Message}");
+            }
+        }
+        static void DepositCash()
+        {
+            Console.Write("\nEnter the cash amount to deposit: ");
+            string input = Console.ReadLine();
+
+            // Validate the input is a positive number
+            if (!decimal.TryParse(input, out decimal amount) || amount <= 0)
+            {
+                Console.WriteLine("Error: Please enter a valid positive number.");
+                return;
+            }
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    
+                    // 1. Add the money to the database
+                    string updateQuery = "UPDATE Accounts SET Balance = Balance + @amount WHERE AccountID = @id";
+                    using (MySqlCommand updateCmd = new MySqlCommand(updateQuery, conn))
+                    {
+                        updateCmd.Parameters.AddWithValue("@amount", amount);
+                        updateCmd.Parameters.AddWithValue("@id", currentAccountId);
+                        updateCmd.ExecuteNonQuery();
+                    }
+
+                    // 2. Fetch the new updated balance to print on the receipt
+                    string balanceQuery = "SELECT Balance FROM Accounts WHERE AccountID = @id";
+                    decimal newBalance = 0;
+                    using (MySqlCommand balanceCmd = new MySqlCommand(balanceQuery, conn))
+                    {
+                        balanceCmd.Parameters.AddWithValue("@id", currentAccountId);
+                        newBalance = Convert.ToDecimal(balanceCmd.ExecuteScalar());
+                    }
+
+                    // 3. Print the exact receipt format requested
+                    Console.WriteLine("Cash Deposited Successfully.");
+                    Console.WriteLine($"Account #{currentAccountId}");
+                    Console.WriteLine($"Date: {DateTime.Now:MM/dd/yyyy}");
+                    Console.WriteLine($"Deposited: {amount}");
+                    Console.WriteLine($"Balance: {newBalance:N0}");
                 }
             }
             catch (Exception ex)
