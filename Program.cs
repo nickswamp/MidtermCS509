@@ -148,8 +148,10 @@ namespace ATMConsoleApp
                         DeleteAccount();
                         break;
                     case "3":
+                        UpdateAccount();
+                        break;
                     case "4":
-                        Console.WriteLine("Admin features coming soon...");
+                        Console.WriteLine("Coming Soon"!);
                         break;
                     case "6":
                         loggedIn = false;
@@ -301,6 +303,100 @@ namespace ATMConsoleApp
                     }
 
                     Console.WriteLine("Account Deleted Successfully"); // 
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database Error: {ex.Message}");
+            }
+        }
+        static void UpdateAccount()
+        {
+            Console.Write("\nEnter the Account Number: "); // [cite: 63]
+            string idInput = Console.ReadLine();
+
+            if (!int.TryParse(idInput, out int accountId))
+            {
+                Console.WriteLine("Error: Invalid account number.");
+                return;
+            }
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+                    
+                    // 1. Fetch the current account data
+                    string fetchQuery = "SELECT HolderName, Balance, Status, Login, PinCode FROM Accounts WHERE AccountID = @id AND Role = 'Customer'";
+                    
+                    string currentHolder = "", currentStatus = "", currentLogin = "", currentPin = "";
+                    decimal currentBalance = 0;
+
+                    using (MySqlCommand fetchCmd = new MySqlCommand(fetchQuery, conn))
+                    {
+                        fetchCmd.Parameters.AddWithValue("@id", accountId);
+                        using (MySqlDataReader reader = fetchCmd.ExecuteReader())
+                        {
+                            if (!reader.Read())
+                            {
+                                Console.WriteLine("Error: Customer account not found.");
+                                return;
+                            }
+
+                            // Store the current values
+                            currentHolder = reader.GetString("HolderName");
+                            currentBalance = reader.GetDecimal("Balance");
+                            currentStatus = reader.GetString("Status");
+                            currentLogin = reader.GetString("Login");
+                            currentPin = reader.GetString("PinCode");
+                        } // Reader closes here so we can run an UPDATE command next
+                    }
+
+                    Console.WriteLine($"\nAccount # {accountId}"); // [cite: 65]
+                    Console.WriteLine("(Press Enter to keep the current value, or type a new one to update it)");
+
+                    // 2. Prompt for new values one by one
+                    Console.Write($"Holder ({currentHolder}): "); // [cite: 66]
+                    string newHolder = Console.ReadLine();
+                    if (string.IsNullOrWhiteSpace(newHolder)) newHolder = currentHolder;
+
+                    Console.Write($"Balance ({currentBalance}): "); // [cite: 67]
+                    string balanceInput = Console.ReadLine();
+                    decimal newBalance = currentBalance;
+                    if (!string.IsNullOrWhiteSpace(balanceInput)) decimal.TryParse(balanceInput, out newBalance);
+
+                    Console.Write($"Status ({currentStatus}): "); // [cite: 68]
+                    string newStatus = Console.ReadLine();
+                    if (string.IsNullOrWhiteSpace(newStatus)) newStatus = currentStatus;
+
+                    Console.Write($"Login ({currentLogin}): "); // [cite: 69]
+                    string newLogin = Console.ReadLine();
+                    if (string.IsNullOrWhiteSpace(newLogin)) newLogin = currentLogin;
+
+                    Console.Write($"Pin Code ({currentPin}): "); // [cite: 70]
+                    string newPin = Console.ReadLine();
+                    if (string.IsNullOrWhiteSpace(newPin)) newPin = currentPin;
+
+                    // 3. Save the changes back to the database
+                    string updateQuery = @"
+                        UPDATE Accounts 
+                        SET HolderName = @name, Balance = @balance, Status = @status, Login = @login, PinCode = @pin 
+                        WHERE AccountID = @id";
+                        
+                    using (MySqlCommand updateCmd = new MySqlCommand(updateQuery, conn))
+                    {
+                        updateCmd.Parameters.AddWithValue("@name", newHolder);
+                        updateCmd.Parameters.AddWithValue("@balance", newBalance);
+                        updateCmd.Parameters.AddWithValue("@status", newStatus);
+                        updateCmd.Parameters.AddWithValue("@login", newLogin);
+                        updateCmd.Parameters.AddWithValue("@pin", newPin);
+                        updateCmd.Parameters.AddWithValue("@id", accountId);
+                        
+                        updateCmd.ExecuteNonQuery();
+                    }
+                    
+                    Console.WriteLine("\nAccount Updated Successfully!");
                 }
             }
             catch (Exception ex)
