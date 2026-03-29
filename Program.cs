@@ -145,6 +145,8 @@ namespace ATMConsoleApp
                         CreateAccount();
                         break;
                     case "2":
+                        DeleteAccount();
+                        break;
                     case "3":
                     case "4":
                         Console.WriteLine("Admin features coming soon...");
@@ -237,6 +239,73 @@ namespace ATMConsoleApp
             {
                 // This will catch things like trying to use a Login name that already exists
                 Console.WriteLine($"\nDatabase Error: {ex.Message}");
+            }
+        }
+        static void DeleteAccount()
+        {
+            Console.Write("\nEnter the account number to which you want to delete: ");
+            string idInput = Console.ReadLine();
+
+            if (!int.TryParse(idInput, out int accountId))
+            {
+                Console.WriteLine("Error: Invalid account number format.");
+                return;
+            }
+
+            try
+            {
+                using (MySqlConnection conn = new MySqlConnection(connectionString))
+                {
+                    conn.Open();
+
+                    // 1. Look up the account to get the Holder's Name
+                    // We also ensure we only delete Customers, not other Administrators
+                    string findQuery = "SELECT HolderName FROM Accounts WHERE AccountID = @id AND Role = 'Customer'";
+                    string holderName = null;
+
+                    using (MySqlCommand findCmd = new MySqlCommand(findQuery, conn))
+                    {
+                        findCmd.Parameters.AddWithValue("@id", accountId);
+                        object result = findCmd.ExecuteScalar();
+                        
+                        if (result != null)
+                        {
+                            holderName = result.ToString();
+                        }
+                    }
+
+                    // If result is null, the account doesn't exist
+                    if (holderName == null)
+                    {
+                        Console.WriteLine("Error: Customer account not found.");
+                        return;
+                    }
+
+                    // 2. Ask for confirmation 
+                    Console.WriteLine($"You wish to delete the account held by {holderName}.");
+                    Console.Write("If this information is correct, please re-enter the account number: ");
+                    string confirmInput = Console.ReadLine();
+
+                    if (confirmInput != idInput)
+                    {
+                        Console.WriteLine("Account numbers do not match. Deletion cancelled.");
+                        return;
+                    }
+
+                    // 3. Actually delete the account from the database
+                    string deleteQuery = "DELETE FROM Accounts WHERE AccountID = @id";
+                    using (MySqlCommand deleteCmd = new MySqlCommand(deleteQuery, conn))
+                    {
+                        deleteCmd.Parameters.AddWithValue("@id", accountId);
+                        deleteCmd.ExecuteNonQuery();
+                    }
+
+                    Console.WriteLine("Account Deleted Successfully"); // 
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine($"Database Error: {ex.Message}");
             }
         }
         static void DisplayBalance()
